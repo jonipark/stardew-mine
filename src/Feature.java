@@ -24,4 +24,24 @@ public class Feature extends Tile{
 		Tile.tiles.remove(this);
 	}
 
+
+	public static Feature getFeatureAt(int x, int y) {
+		x = x / Game.TILE_SIZE;
+		y = y / Game.TILE_SIZE;
+		Feature cur;
+		for (int i = 0; i < features.size(); i++) {
+			cur = features.get(i);
+			if (cur.x == x && cur.y == y) {
+				return cur;
+			}
+		}
+		return null;
+	}
+
+	// Does nothing -- override this for feature specific clicks! 
+	public void click() {
+		System.out.println("No click method set");
+	}
+
+
 }

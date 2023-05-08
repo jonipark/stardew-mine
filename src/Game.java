@@ -15,14 +15,24 @@ import java.lang.Math;
 public class Game extends GFGame
 {
 	public static Inventory inventory;
+	public static CraftingMenu craftingMenu;
 
 	public static final int TILE_SIZE = 32;
 
-	public static final int MAP_WIDTH = 40; // The maximum size a single "level" can be. Right now, it's ~ the size of the screen.
-	public static final int MAP_HEIGHT = 40;
+	public static final float STRAY_ROCK_FREQUENCY = 0.05f; // what % of floor tiles should contain rocks
+	public static final float MAPPED_ROCK_FREQUENCY = 0.75f; // what % of rock tiles should contain rocks
 
-	public static Tile[][] map = new Tile[MAP_WIDTH][MAP_HEIGHT]; // The current loaded map
-	public static String[][] floormap = new String[MAP_WIDTH][MAP_HEIGHT]; // The floor of the map
+	public static int mapWidth = 40;
+	public static int mapHeight = 40;
+
+	public static Tile[][] map = new Tile[mapWidth][mapHeight]; // The current loaded map
+	public static String[][] floormap = new String[mapWidth][mapHeight]; // The current floor map
+	public static boolean[][] shadowmap = new boolean[mapWidth][mapHeight]; // The shadows over the map
+	public static String theme = "";
+
+	public static final String[] THEMES = new String[] {"", "CRYSTAL_", "DIRT_", "LAVA_", "ABYSS_"};
+
+	public static final String[] LEVELS = new String[] {"assets/map/underground-river.txt", "assets/map/treasure-trove.txt","assets/map/tunnel-cave.txt"};
 
  	GFSound walking = new GFSound("assets/sounds/walking.wav");
 	GFSound backgroundMusic = new GFSound("assets/sounds/background.mp3");
@@ -48,14 +58,12 @@ public class Game extends GFGame
 		backgroundMusic.play();
 
 		TextureEntry.init();
-		readMap("assets/map/map.txt"); // initializes tileDict
-		initFloor();
+		readMap("assets/map/treasure-trove.txt"); // initializes tileDict
 		inventory = new Inventory(this.WIDTH / 2, this.HEIGHT - 60);
+		craftingMenu = new CraftingMenu(this.WIDTH / 2, this.HEIGHT / 2);
 	}
 
 	private static String getWaterTileType(int x, int y, String[][] mapArray) {
-		int mapHeight = mapArray.length;
-		int mapWidth = mapArray[0].length;
 
 		boolean isLeftWater = x > 0 && (mapArray[y][x - 1].equals("2") || mapArray[y][x - 1].equals("3"));
 		boolean isRightWater = x < mapWidth - 1 && (mapArray[y][x + 1].equals("2") || mapArray[y][x + 1].equals("3"));
@@ -76,8 +84,6 @@ public class Game extends GFGame
 	}
 
 	private static String getDeepWaterTileType(int x, int y, String[][] mapArray) {
-		int mapHeight = mapArray.length;
-		int mapWidth = mapArray[0].length;
 
 		boolean isLeftWater = x > 0 && mapArray[y][x - 1].equals("3");
 		boolean isRightWater = x < mapWidth - 1 && mapArray[y][x + 1].equals("3");
@@ -98,16 +104,19 @@ public class Game extends GFGame
 	}
 
 	private static String getWallTileType(int x, int y, String[][] mapArray) {
-		int mapHeight = mapArray.length;
-		int mapWidth = mapArray[0].length;
+		//int mapHeight = mapArray.length;
+		//int mapWidth = mapArray[0].length;
 
 		boolean isLeftWall = x > 0 && mapArray[y][x - 1].equals("4");
 		boolean isRightWall = x < mapWidth - 1 && mapArray[y][x + 1].equals("4");
 		boolean isUpWall = y > 0 && mapArray[y - 1][x].equals("4");
 		boolean isBottomWall = y < mapHeight - 1 && mapArray[y + 1][x].equals("4");
+		boolean isBottomRightWall = x > 0 && y < mapHeight - 1 && mapArray[y + 1][x + 1].equals("4");
 
 		if (!isLeftWall && !isRightWall && !isUpWall && !isBottomWall) {
 			return "WALL_L_R_U_B";
+		} else if (isLeftWall && isRightWall && isUpWall && isBottomWall && !isBottomRightWall) {
+			return "WALL_INNER_CORNER";
 		} else if (isLeftWall && !isRightWall && !isUpWall && !isBottomWall) {
 			return "WALL_R_U_B";
 		} else if (!isLeftWall && isRightWall && !isUpWall && !isBottomWall) {
@@ -136,8 +145,11 @@ public class Game extends GFGame
 			return "WALL_L";
 		} else if (isLeftWall && !isRightWall && isUpWall && isBottomWall) {
 			return "WALL_R";
-		} else
-		return "WALL_INNER_CORNER";
+		} else if (isLeftWall && isRightWall && isUpWall && isBottomWall) {
+			return "WALL";
+		} else {
+			return "NOT_FOUND";
+		}
 	
 	}
 
@@ -153,8 +165,8 @@ public class Game extends GFGame
 		}
 		String[] mapRows = mapString.split("\n");
 
-		int mapHeight = mapRows.length;
-		int mapWidth = mapRows[0].split(",").length;
+		mapHeight = mapRows.length;
+		mapWidth = mapRows[0].split(",").length-1;
 
 		// Create a 2D array for the map
 		String[][] mapArray = new String[mapHeight][mapWidth];
@@ -162,11 +174,31 @@ public class Game extends GFGame
 			mapArray[i] = mapRows[i].split(",");
 		}
 
+
+		// Get a random level theme
+		theme = THEMES[GFU.randint(0, THEMES.length-1)];
+
+
+		// Ready arrays to hold tiles + reset everything
+		map = new Tile[mapWidth][mapHeight];
+		shadowmap = new boolean[mapWidth][mapHeight];
+		floormap = new String[mapWidth][mapHeight];
+		initFloor();
+		Rock.rocks = new ArrayList<Rock>();
+		Feature.features = new ArrayList<Feature>();
+		Tile.tiles = new ArrayList<Tile>();
+		DroppedItem.floorItems = new ArrayList<DroppedItem>();
+
 		for (int i = 0; i < mapHeight; i++) {
 			for (int j = 0; j < mapWidth; j++) {
 				String tileChar = mapArray[i][j];
-				if (tileChar.equals("1") || tileChar.equals("5")) {
-					//map[j][i] = new Tile(j, i, "BACKGROUND_TILE", "FLOOR", true);
+				if (tileChar.equals("1")) {
+					genRock(j, i, STRAY_ROCK_FREQUENCY);
+				} else if (tileChar.equals("5")) {
+					genRock(j, i, MAPPED_ROCK_FREQUENCY);
+				} else if (tileChar.equals("6")) {
+					SmithingTable smithingTable = new SmithingTable(j, i, "SMITHING_TABLE", "SMITHING_TABLE");
+					Feature.features.add(smithingTable);
 				} else if (tileChar.equals("2")) {
 					String waterTileType = getWaterTileType(j, i, mapArray);
 					map[j][i] = new Tile(j, i, "BACKGROUND_TILE", waterTileType, false);
@@ -174,37 +206,49 @@ public class Game extends GFGame
 					String deepWaterTileType = getDeepWaterTileType(j, i, mapArray);
 					map[j][i] = new Tile(j, i, "BACKGROUND_TILE", deepWaterTileType, false);
 				} else if (tileChar.equals("4")) {
-					String wallTileType = getWallTileType(j, i, mapArray);
+					String wallTileType = theme+getWallTileType(j, i, mapArray);
 					map[j][i] = new Tile(j, i, "WALL_TILE", wallTileType, false);
+				} else if (tileChar.equals("9")) {
+					Player.player.setPos(j * TILE_SIZE, i * TILE_SIZE);
+				} else if (tileChar.equals("0")) {
+					shadowmap[j][i] = true;
 				}
-
-				// Rock generation
-				if (tileChar.equals("5")) {
-					int textureIndex = GFU.randint(0, 7);
-					String[] textures = {
-						"STONE",
-						"IRON",
-						"GOLD",
-						"SILVER",
-						"COPPER",
-						"STEEL",
-						"DIAMOND",
-						"RUBY"
-					};
-					String texture = textures[textureIndex];
-					new Rock(j, i, "ROCK_BREAKABLE", texture, texture);
-					// new Rock(j, i, "ROCK_BREAKABLE", "STONE", "STONE"); // order of strings: type, image, resource
-				}
+				
 			}
 		}
 	}
 
-	public void initFloor() {
-		String term = "FLOOR_VARIANT_";
+	static void genRock(int x, int y, float frequency) {
+		int rand = GFU.randint(0, 100);
+		int compare = (int) (frequency * 100);
+
+		if (rand < compare) {
+			// thanks Joni! 
+			String[] textures = {
+				"STONE",
+				"IRON",
+				"GOLD",
+				"SILVER",
+				"COPPER",
+				"STEEL",
+				"DIAMOND",
+				"RUBY"
+			};
+			int textureIndex = GFU.randint(0, textures.length-1);
+			String texture = textures[textureIndex];
+			new Rock(x, y, "ROCK_BREAKABLE", texture, texture);
+
+		}
+
+	}
+
+
+	public static void initFloor() {
+		String term = theme+"FLOOR_VARIANT_";
 		int rand;
 
-		for (int y = 0; y < MAP_HEIGHT; y++) {
-			for (int x = 0; x < MAP_WIDTH; x++) {
+		for (int y = 0; y < mapHeight; y++) {
+			for (int x = 0; x < mapWidth; x++) {
 				rand = GFU.randint(0,40);
 				if (rand > 6) { rand = 0;}
 				floormap[x][y] = term+GFU.randint(0,6);
@@ -218,8 +262,8 @@ public class Game extends GFGame
 		GFStamp s;
 		Tile cur;
 
-		for (int y = 0; y < MAP_HEIGHT; y++) {
-			for (int x = 0; x < MAP_WIDTH; x++) {
+		for (int y = 0; y < mapHeight; y++) {
+			for (int x = 0; x < mapWidth; x++) {
 				cur = map[x][y];
 
 				if (cur != null && !cur.image_name.equals("NOTHING")) { // blank tiles aren't rendered
@@ -231,11 +275,51 @@ public class Game extends GFGame
 		}
 	}
 
-	public void drawBase() {
-		GFStamp s = TextureEntry.get("FLOOR");
 
-		for (int y = 0; y < MAP_HEIGHT; y++) {
-			for (int x = 0; x < MAP_WIDTH; x++) {
+	public void drawShadow() {
+		drawFade();
+		GFStamp s = TextureEntry.get("FOG");
+		for (int y = 0; y < mapHeight; y++) {
+			for (int x = 0; x < mapWidth; x++) {
+				if (shadowmap[x][y]) {
+					s.moveTo(x * TILE_SIZE - cameraX, y * TILE_SIZE - cameraY);
+					s.stamp();
+				}
+			}
+		}
+
+	}
+	// Draws the fadeout along the edge of the map. 
+	public void drawFade() {
+
+		GFStamp s;
+
+		for (int y = 0; y < mapHeight; y++) {
+			s = TextureEntry.get("SHADOW_LEFT");
+			s.moveTo(-cameraX, y * TILE_SIZE - cameraY);
+			s.stamp();
+			s = TextureEntry.get("SHADOW_RIGHT");
+			s.moveTo((mapWidth-1)*TILE_SIZE-cameraX, y * TILE_SIZE - cameraY);
+			s.stamp();
+		}
+
+		for (int x = 0; x < mapWidth; x++) {
+			
+			s = TextureEntry.get("SHADOW_TOP");
+			s.moveTo(x * TILE_SIZE - cameraX, - cameraY);
+			s.stamp();
+			
+			s = TextureEntry.get("SHADOW_BOTTOM");
+			s.moveTo(x * TILE_SIZE - cameraX, (mapHeight-1)*TILE_SIZE- cameraY);
+			s.stamp();
+		}
+	}
+
+	public void drawBase() {
+		GFStamp s;
+
+		for (int y = 0; y < mapHeight; y++) {
+			for (int x = 0; x < mapWidth; x++) {
 				
 				s = TextureEntry.get(floormap[x][y]);
 				s.moveTo(x * TILE_SIZE - cameraX, y * TILE_SIZE - cameraY);
@@ -288,7 +372,10 @@ public class Game extends GFGame
 		drawFeatures();
 		DroppedItem.drawItems();
 		drawPlayer();
+		drawShadow();
 		inventory.drawInventory();
+		craftingMenu.drawCraftingMenu();
+		Particle.drawParticles();
 	}
 
 	/* Uses the key strokes of WASD, and arrow symbols to move Player (player class)
@@ -317,21 +404,28 @@ public class Game extends GFGame
 		int dx = 0;
 		int dy = 0;
 
+		int speed = 1;
+		if (pressedKeys.contains(GFKey.ShiftLeft)) {
+			speed = 2;
+		}
+
 		if (pressedKeys.contains(GFKey.ArrowDown) || pressedKeys.contains(GFKey.S)) {
-			dy += 1;
+			dy += speed;
 		}
 		if (pressedKeys.contains(GFKey.ArrowUp) || pressedKeys.contains(GFKey.W)) {
-			dy -= 1;
+			dy -= speed;
 		}
 		if (pressedKeys.contains(GFKey.ArrowRight) || pressedKeys.contains(GFKey.D)) {
-			dx += 1;
+			dx += speed;
 		}
 		if (pressedKeys.contains(GFKey.ArrowLeft) || pressedKeys.contains(GFKey.A)) {
-			dx -= 1;
+			dx -= speed;
 		}
 
 		Player.player.moveTo(x + dx, y + dy);
     }
+
+
 	public void breakRock() {
 		Rock current;
 		// boolean playerNearRock;
@@ -342,10 +436,23 @@ public class Game extends GFGame
 			current = Rock.rocks.get(i);
 
 			if (Math.abs(current.x-x/32)<2 && Math.abs(current.y-y/32)<2) {
-				current.breakRock();
+				current.hitRock();
 				break;
 			}
 		}
+	}
+
+	public void onMouseDown (int x, int y, int buttons, int flags, int button) {
+		int world_x = x + cameraX;
+		int world_y = y + cameraY;
+		if (craftingMenu.isVisible && craftingMenu.isCraftButtonClicked(x, y)) {
+			craftingMenu.craftDiamondSword();
+		} else if (craftingMenu.isVisible && !craftingMenu.isCraftButtonClicked(world_x, world_y)) {
+			craftingMenu.isVisible = false;
+		} else {
+			Player.clickFeature(world_x, world_y);
+		}
+		
 	}
 
 }

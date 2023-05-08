@@ -16,6 +16,7 @@ public class Inventory {
     GFStamp boxImg =  TextureEntry.get("INVENTORY_BACKGROUND");
     GFSound scoreIncrease = new GFSound("assets/sounds/scoreIncrease.mp3");
     GFStamp[] itemStamps = {
+			TextureEntry.get("SWORD"), // Sword!
 			TextureEntry.get("GOLD_ITEM"),
 			TextureEntry.get("SILVER_ITEM"),
 			TextureEntry.get("COPPER_ITEM"),
@@ -24,8 +25,7 @@ public class Inventory {
 			TextureEntry.get("DIAMOND_ITEM"),
 			TextureEntry.get("RUBY_ITEM"),
 			TextureEntry.get("STONE_ITEM"),
-			TextureEntry.get("NOT_FOUND"), // sapphire -- can do!
-			TextureEntry.get("NOT_FOUND"), // cookie
+			TextureEntry.get("NOT_FOUND"), // empty -- add more!
 		};
 
     GFFont font = new GFFont("gafr/fonts/spleen/spleen-8x16.ffont.json");
@@ -39,16 +39,24 @@ public class Inventory {
     }
 
     private void initializeItemTypeMap() {
-        itemTypeMap.put("GOLD", 0);
-        itemTypeMap.put("SILVER", 1);
-        itemTypeMap.put("COPPER", 2);
-        itemTypeMap.put("IRON", 3);
-        itemTypeMap.put("STEEL", 4);
-        itemTypeMap.put("DIAMOND", 5);
-        itemTypeMap.put("RUBY", 6);
-        itemTypeMap.put("STONE", 7);
-        itemTypeMap.put("sapphire", 8);
-        itemTypeMap.put("cookie", 9);
+        itemTypeMap.put("SWORD", 0);
+        itemTypeMap.put("GOLD", 1);
+        itemTypeMap.put("SILVER", 2);
+        itemTypeMap.put("COPPER", 3);
+        itemTypeMap.put("IRON", 4);
+        itemTypeMap.put("STEEL", 5);
+        itemTypeMap.put("DIAMOND", 6);
+        itemTypeMap.put("RUBY", 7);
+        itemTypeMap.put("STONE", 8);
+        itemTypeMap.put("empty", 9);
+    }
+
+    public boolean hasResource(String itemType, int amount) {
+        Integer index = itemTypeMap.get(itemType);
+        if (index != null) {
+            return itemCount[index] >= amount;
+        }
+        return false;
     }
 
     public void addItem(String itemType) {
