@@ -44,6 +44,7 @@ https://user-images.githubusercontent.com/89917595/236913602-b45c5f58-e938-442d-
    7. Show craft button only if resources sufficient
    (For the future improvement, adding an equipping/unequipping method in the Player class would increase flexibility for other weapons!)
 <hr/>
+
 ### Ver 1:
    ### Inventory
    <img width="600" alt="Screenshot 2023-05-04 at 5 43 17 PM" src="https://user-images.githubusercontent.com/89917595/236336544-13c04efe-2657-4acc-8abd-8abf6a76ab14.png">
