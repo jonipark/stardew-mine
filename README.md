@@ -1,7 +1,7 @@
 # Stardew mine
 ## Game Overview:
 Stardew Mine is a grid-based mining game in which players gather various types of gems by breaking rocks. 
-We plan to introduce features similar to Minecraft, allowing users to craft unique weapons using the collected gems and battle against monsters.
+We plan to introduce features similar to Minecraft, allowing users to craft unique weapons using the collected gems.
 - COMSC-341GP Game Programming Class Team Project: [Presentation Slides](https://docs.google.com/presentation/d/1t5ZGmrFqCwlhLDc3hhbzrQMC3Y0gWtffb1AkS2b0iLs/edit?usp=sharing)
 
 <img width="400" alt="Screenshot 2023-05-08 at 3 09 08 PM" src="https://user-images.githubusercontent.com/89917595/236911407-7472b156-f41c-486d-90bd-4c4642a82f60.png"> <img width="400" alt="Screenshot 2023-05-08 at 3 09 11 PM" src="https://user-images.githubusercontent.com/89917595/236911437-bcd3670c-1b72-43ea-b0fb-f22b97646913.png">
